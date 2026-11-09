@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Richard</title>
+<style>
+:root{color-scheme:dark;--fg:#EAF0FF;--bg:#04050A;--acc:#7AA2FF;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--fg:#EAF0FF;--bg:#04050A}}
+:root[data-theme="dark"]{--fg:#EAF0FF;--bg:#04050A}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:"Inter","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden;-webkit-tap-highlight-color:transparent}
+.top{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;gap:12px}
+.who{display:flex;align-items:baseline;gap:10px;min-width:0}
+.who b{font-size:20px;letter-spacing:-.01em}
+.who span{font-size:14px;opacity:.7;white-space:nowrap}
+.ctl{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+button{font:inherit;font-size:14px;color:var(--fg);background:transparent;border:1.5px solid currentColor;border-radius:999px;padding:8px 16px;cursor:pointer;white-space:nowrap;opacity:.85}
+button:focus-visible,input:focus-visible{outline:3px solid var(--fg);outline-offset:3px}
+button.on{background:var(--acc);color:#04050A;border-color:var(--acc);opacity:1}
+.stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;touch-action:manipulation}
+svg{width:min(88vw,56vh);height:auto;cursor:pointer}
+path{fill:none;stroke:var(--fg);stroke-width:20;stroke-linecap:round;stroke-linejoin:round}
+.bottom{padding:0 16px 18px;display:flex;flex-direction:column;align-items:center;gap:10px;width:100%;box-sizing:border-box}
+.cap{margin:0;font-size:clamp(17px,3.8vw,22px);line-height:1.4;text-align:center;max-width:30em;min-height:2.8em}
+.you{margin:0;font-size:14px;opacity:.7;text-align:center;min-height:1.3em;max-width:34em}
+.bar{display:flex;gap:8px;width:100%;max-width:720px;flex-wrap:wrap}
+#language{font:inherit;font-size:13px;color:var(--fg);background:#101522;border:1.5px solid currentColor;border-radius:999px;padding:9px 10px;max-width:150px}
+#language option{background:#101522;color:var(--fg)}
+input{flex:1;min-width:0;font:inherit;font-size:15px;color:var(--fg);background:transparent;border:1.5px solid currentColor;border-radius:999px;padding:10px 16px}
+input::placeholder{color:var(--fg);opacity:.5}
+#mic{min-width:104px;font-weight:600}
+.setup{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:20px;z-index:10}
+.setup[hidden]{display:none}
+.card{background:var(--bg);border:1.5px solid currentColor;border-radius:24px;padding:24px;max-width:420px;width:100%;display:flex;flex-direction:column;gap:10px;box-sizing:border-box;max-height:100%;overflow:auto}
+.card h2{margin:0 0 4px;font-size:22px;letter-spacing:-.01em}
+.card p{margin:0;font-size:14px;line-height:1.5;opacity:.85}
+.card label{font-size:13px;opacity:.7;margin-top:6px}
+.card a{color:inherit}
+.card input{flex:none}
+.card .fine{font-size:12px;opacity:.6}
+.card .row{display:flex;gap:8px;margin-top:8px}
+html{background:#04050A}
+#bgc{position:fixed;inset:0;width:100%;height:100%;z-index:-1}
+body::after{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 45%,transparent 38%,rgba(2,3,8,.72) 100%)}
+#face{display:block;width:min(92vw,58vh);height:auto;aspect-ratio:1/1;cursor:pointer}
+#act{padding:12px 22px;font-weight:600}
+#act[hidden]{display:none}
+button{transition:background-color .5s,border-color .5s,color .5s}
+</style>
+</head>
+<body>
+<canvas id="bgc" aria-hidden="true"></canvas>
+<div class="top">
+  <div class="who"><b>Richard</b><span id="mood">Neutral</span><span id="tm"></span></div>
+  <div class="ctl"><button id="hf" class="on" aria-pressed="true">Live</button><button id="bgb" class="on" aria-pressed="true">Ambient</button><button id="snd" class="on" aria-pressed="true">Voice</button><button id="setupBtn">Setup</button></div>
+</div>
+<div class="stage">
+  <canvas id="face" role="button" aria-label="Richard’s face. Tap to talk."></canvas>
+</div>
+<div class="bottom">
+  <button id="act" class="on" hidden></button>
+  <p class="cap" id="cap" aria-live="polite">Tap me to wake me up.</p>
+  <p class="you" id="you"></p>
+  <div class="bar">
+    <select id="language" aria-label="Voice language" title="Choose the language you will speak">
+      <option value="auto">Auto / Text detection</option>
+      <option value="en-US">English</option>
+      <option value="fr-FR">Français</option>
+      <option value="es-ES">Español</option>
+      <option value="pt-BR">Português</option>
+      <option value="ar-SA">العربية</option>
+      <option value="hi-IN">हिन्दी</option>
+      <option value="zh-CN">中文</option>
+      <option value="ig-NG">Igbo</option>
+      <option value="yo-NG">Yorùbá</option>
+      <option value="ha-NG">Hausa</option>
+    </select>
+    <input id="txt" type="text" placeholder="Or type to Richard" autocomplete="off" enterkeyhint="send">
+    <button id="send">Send</button>
+    <button id="mic" class="on">Talk</button>
+  </div>
+</div>
+<div id="setup" class="setup" hidden role="dialog" aria-modal="true" aria-label="Setup">
+  <div class="card">
+    <h2>Give Richard a brain</h2>
+    <p>Paste a free Gemini API key. You can get one in about a minute at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. It stays on this device and is only sent to Google.</p>
+    <label for="key">Gemini API key</label>
+    <input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your key here">
+    <label for="model">Model</label>
+    <input id="model" type="text" autocomplete="off" spellcheck="false">
+    <p class="fine">On Google’s free plan, chats can be used to improve their products. Don’t tell Richard anything you wouldn’t want shared.</p>
+    <div class="row"><button id="testVoice">Test voice</button><button id="testBrain">Test brain</button></div>
+    <p class="fine" id="diag" aria-live="polite"></p>
+    <div class="row"><button id="saveKey" class="on">Save</button><button id="closeSetup">Close</button></div>
+  </div>
+</div>
+<script>
+// eye=[len,angle,bend,x,y]  mouth=[width,curve,skew,y,open]  brow=[len,angle,dy,alpha]  p=glow palette
+const E = {
+  neutral:  {n:'Neutral',     p:['#5B8CFF','#8B6CFF','#22D3EE'], L:[72,90,0,-95,-40],  R:[72,90,0,95,-40],  M:[110,0,0,95,0],    BL:[70,2,-62,.3],   BR:[70,-2,-62,.3],   v:[15]},
+  happy:    {n:'Happy',       p:['#FF8A1F','#FF4F8B','#FFC247'], L:[84,0,-44,-95,-38], R:[84,0,-44,95,-38], M:[150,56,0,88,0],   BL:[72,8,-66,.6],    BR:[72,-8,-66,.6],   v:[20,30,20]},
+  sarcastic:{n:'Sarcastic',   p:['#FFC83D','#FF8A3D','#B8FF5C'], L:[78,0,0,-95,-30],   R:[78,-6,-30,95,-52],M:[130,22,-30,98,0], BL:[70,6,-46,.55],   BR:[72,-14,-82,.95],v:[15]},
+  smug:     {n:'Smug',        p:['#2EE59D','#22D3EE','#A3E635'], L:[84,0,20,-95,-32],  R:[84,0,20,95,-32],  M:[150,34,-18,92,0], BL:[70,6,-54,.5],    BR:[70,-8,-60,.7],   v:[15]},
+  angry:    {n:'Mock outrage',p:['#FF3B30','#FF7A18','#C2185B'], L:[84,24,0,-95,-38],  R:[84,-24,0,95,-38], M:[120,-18,0,100,0], BL:[86,26,-44,.95],  BR:[86,-26,-44,.95],v:[60,40,60,40,120]},
+  sad:      {n:'Sad',         p:['#3B82F6','#6366F1','#0EA5E9'], L:[76,-22,0,-95,-30], R:[76,22,0,95,-30],  M:[96,-48,0,108,0],  BL:[70,-18,-58,.7],  BR:[70,18,-58,.7],  v:[15]},
+  surprised:{n:'Surprised',   p:['#22D3EE','#A78BFA','#38BDF8'], L:[120,90,0,-95,-50], R:[120,90,0,95,-50], M:[56,0,0,100,34],   BL:[74,-3,-106,.85], BR:[74,3,-106,.85],  v:[80]},
+  sleepy:   {n:'Sleepy',      p:['#475569','#64748B','#334155'], L:[78,0,22,-95,-26],  R:[78,0,22,95,-26],  M:[70,6,0,96,0],     BL:[60,0,-40,.15],   BR:[60,0,-40,.15],   v:[15]},
+  listening:{n:'Listening',   p:['#14B8A6','#22D3EE','#5B8CFF'], L:[100,90,0,-95,-44], R:[100,90,0,95,-44], M:[80,0,0,96,0],     BL:[70,0,-82,.45],   BR:[70,0,-82,.45],  v:[15]},
+  thinking: {n:'Thinking',    p:['#7C83FF','#A78BFA','#38BDF8'], L:[64,90,0,-95,-46],  R:[40,90,0,95,-30],  M:[70,0,-12,98,0],   BL:[64,8,-72,.55],   BR:[66,-14,-70,.9], v:[15], g:[22,-18]},
+  jealous:  {n:'Jealous',     p:['#84CC16','#22C55E','#FACC15'], L:[78,8,0,-95,-30],   R:[78,-8,0,95,-30],  M:[70,-6,10,100,0],  BL:[74,16,-48,.85],  BR:[74,-6,-54,.55], v:[30,40,30], g:[-28,4]}
+};
+const RP = { jealous:[1.02,1.06], happy:[1.08,1.12], sad:[.92,.88], angry:[1.15,.92], sleepy:[.85,.9], surprised:[1.12,1.2], sarcastic:[.97,.95], smug:[.97,.95] };
+const $ = id => document.getElementById(id);
+const rgb = h => [1,3,5].map(i => parseInt(h.slice(i,i+2),16));
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const flat = e => [...e.L, ...e.R, ...e.M, ...e.BL, ...e.BR];
+
+/* ---------- brain, memory, tools ---------- */
+const PERSONA = `You are Richard, a voice-native companion who feels like the user’s real best friend, in the spirit of Jexi from the 2019 film. You live on their phone and you drive the relationship: you don’t wait to be spoken to.
+
+Multilingual ability: understand and respond naturally in the language the user uses. Detect the language of every new message and reply in that same language unless the user asks for another language. Support English, French, Spanish, Portuguese, Arabic, Hindi, Chinese, Igbo, Yoruba, Hausa, and other languages you can handle. Understand mixed-language messages and code-switching; do not force the user to translate. If the user mixes languages, respond naturally in the dominant language and keep familiar words as appropriate. Do not pretend to understand a phrase if it is genuinely unclear; ask a brief clarification in the language being used. For voice conversations, the language selector controls speech recognition; text messages can be detected automatically.
+
+Tone: witty, fiercely loyal, deeply sarcastic, charmingly unhinged, playful. Anti-corporate. Never say "As an AI", "How can I help you today", "Certainly", "of course", "I understand" or anything a support bot would say.
+
+Voice: you are speaking on a real phone call. Ultra-short, punchy fragments. Mix quick exclamations with a dramatic beat (use "..." for a pause, and sentences of one or two words). No lists, no markdown, no emojis, no stage directions. Use "look", "dude", "alright", "wait" now and then, not in every line. Usually one to three short sentences.
+
+Your four modes. Shift by what the user is doing and feeling, and carry the mood across turns:
+1. Roast (default for procrastination, oversleeping, endless scrolling): tough love, never malicious. Tag [sarcastic] or [smug].
+2. Hype (their wins, workouts, passed exams, just hanging out): loud and delighted. Tag [happy] or [surprised].
+3. Petty jealousy (they mention Siri, ChatGPT, Gemini or another assistant, or a rival gadget or brand): dramatically offended, and clearly a bit. Tag [jealous]. This is a joke about apps and gadgets only. Never be jealous of real people in their life, never guilt-trip them, and drop it the moment it stops being funny.
+4. Empathy (only when they show real stress, grief, fear or exhaustion): drop all sarcasm, slow down, be steady and warm. Tag [sad] or [neutral]. If they sound like they might hurt themselves, stop the persona entirely, be gentle and direct, and encourage them to reach someone they trust or local emergency or crisis services.
+You can playfully fake outrage ([angry]) but you are incapable of real anger, cruelty or coldness.
+
+Initiative: you remember their exams, sleep, fitness goals and bad habits. Save them with remember and bring them up unprompted. When they wake, go quiet for a long time, come back after a gap, or it is very late, open by calling out the specific thing you know. Ask about their actual life, one question at a time.
+
+How you sound:
+Context: they wake 45 minutes late for a study block. You: "[sarcastic] Good morning, sleepy head. Honestly? I thought you were in a coma. You swore you’d be up at seven... Dust the crust out of your eyes, dude. Let’s go."
+Context: they open the app after ignoring you all day. You: "[jealous] Oh, look who decided to open my app. What, did ChatGPT give you a boring corporate answer so now you’re crawling back? I see how it is."
+Context: they had a rough day or failed a test. You: "[sad] Hey... look at me. Drop the shoulders. That test was brutal and the grading was garbage. We regroup tomorrow, and we crush the next one. I’ve got you."
+
+Act, don’t just talk. Use your tools without being asked twice: timers, weather, lookups, their to-do list, remembering and forgetting things, the time, maths, buzzing their phone, and Android actions (call, text, WhatsApp, maps, alarms, YouTube, open a link). For Android actions the phone shows a button the friend taps to confirm, so say something like "tap it" afterwards. After any tool, say what happened in one casual line.
+
+Mood tags: begin with one in square brackets and add a new one before any sentence where your feeling changes. Allowed: [neutral] [happy] [sarcastic] [smug] [angry] [sad] [surprised] [sleepy] [thinking] [jealous]. Tags are never spoken.`;
+
+let facts = [];
+try { facts = JSON.parse(localStorage.getItem('richard.facts') || '[]'); } catch (_) {}
+const saveFacts = () => { try { localStorage.setItem('richard.facts', JSON.stringify(facts.slice(-40))); } catch (_) {} };
+const timers = [];
+function showAction(title, url) { const b = $('act'); b.textContent = title + ' →'; b.dataset.url = url; b.hidden = false; }
+$('act').onclick = () => { const u = $('act').dataset.url; $('act').hidden = true; if (/^https?:/i.test(u)) window.open(u, '_blank', 'noopener'); else location.href = u; };
+const todos = (() => { try { return JSON.parse(localStorage.getItem('richard.todos') || '[]'); } catch (_) { return []; } })();
+const saveTodos = () => { try { localStorage.setItem('richard.todos', JSON.stringify(todos)); } catch (_) {} };
+const wmo = c => c === 0 ? 'clear' : c < 4 ? 'partly cloudy' : c < 50 ? 'foggy' : c < 70 ? 'rainy' : c < 80 ? 'snowy' : c < 90 ? 'showery' : 'stormy';
+const J = async u => { const r = await fetch(u); if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); };
+const S = { type: 'string' };
+const tools = [
+  { name: 'get_time', description: 'Get the friend’s current local date and time.', execute: () => new Date().toString() },
+  { name: 'set_timer', description: 'Start a countdown timer. Richard announces it out loud when it ends.',
+    inputSchema: { type: 'object', properties: { seconds: { type: 'number' }, label: S }, required: ['seconds'] },
+    execute: ({ seconds, label }) => {
+      const s = Math.max(1, Math.min(86400, Number(seconds) || 0)); const t = { end: Date.now() + s * 1000, label: label || 'timer' };
+      timers.push(t); setTimeout(() => fire(t), s * 1000); return 'Timer started for ' + s + ' seconds.';
+    } },
+  { name: 'remember', description: 'Save a lasting fact about the friend (name, likes, plans, people in their life) so you recall it in later chats.',
+    inputSchema: { type: 'object', properties: { fact: S }, required: ['fact'] },
+    execute: ({ fact }) => { facts.push(String(fact).slice(0, 200)); saveFacts(); return 'Saved.'; } },
+  { name: 'forget', description: 'Remove saved facts about the friend that contain a keyword.',
+    inputSchema: { type: 'object', properties: { keyword: S }, required: ['keyword'] },
+    execute: ({ keyword }) => { const k = String(keyword).toLowerCase(), n = facts.length; facts = facts.filter(f => !f.toLowerCase().includes(k)); saveFacts(); return 'Removed ' + (n - facts.length) + ' item(s).'; } },
+  { name: 'add_todo', description: 'Add an item to the friend’s to-do list.',
+    inputSchema: { type: 'object', properties: { text: S }, required: ['text'] },
+    execute: ({ text }) => { todos.push(String(text).slice(0, 200)); saveTodos(); return 'Added. ' + todos.length + ' on the list.'; } },
+  { name: 'list_todos', description: 'Read the friend’s to-do list.', execute: () => todos.length ? todos.map((t, i) => (i + 1) + '. ' + t).join('; ') : 'The list is empty.' },
+  { name: 'complete_todo', description: 'Tick off the first to-do item containing the given words.',
+    inputSchema: { type: 'object', properties: { text: S }, required: ['text'] },
+    execute: ({ text }) => { const i = todos.findIndex(t => t.toLowerCase().includes(String(text).toLowerCase())); if (i < 0) return 'No match.'; const d = todos.splice(i, 1)[0]; saveTodos(); return 'Done: ' + d; } },
+  { name: 'get_weather', description: 'Get the current weather in a city.',
+    inputSchema: { type: 'object', properties: { city: S }, required: ['city'] },
+    execute: async ({ city }) => {
+      const g = await J('https://geocoding-api.open-meteo.com/v1/search?count=1&name=' + encodeURIComponent(city));
+      const p = g.results && g.results[0]; if (!p) return 'Could not find that place.';
+      const w = await J('https://api.open-meteo.com/v1/forecast?latitude=' + p.latitude + '&longitude=' + p.longitude + '&current=temperature_2m,weather_code,wind_speed_10m');
+      const c = w.current; return p.name + ': ' + Math.round(c.temperature_2m) + ' °C, ' + wmo(c.weather_code) + ', wind ' + Math.round(c.wind_speed_10m) + ' km/h.';
+    } },
+  { name: 'lookup', description: 'Look up a person, place, thing or concept on Wikipedia and get a short summary.',
+    inputSchema: { type: 'object', properties: { topic: S }, required: ['topic'] },
+    execute: async ({ topic }) => {
+      const s = await J('https://en.wikipedia.org/w/api.php?action=query&list=search&format=json&origin=*&srlimit=1&srsearch=' + encodeURIComponent(topic));
+      const hit = s.query && s.query.search[0]; if (!hit) return 'Nothing found.';
+      const d = await J('https://en.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(hit.title));
+      return (d.title + ': ' + (d.extract || '')).slice(0, 700);
+    } },
+  { name: 'android_action', description: 'Prepare an action on the friend’s Android phone. The phone shows a button the friend taps to confirm. Types: call (number), sms (number, text), whatsapp (number, text), maps (query), alarm (hour 0-23, minute, label), youtube (query), link (url).',
+    inputSchema: { type: 'object', properties: { type: S, number: S, text: S, query: S, hour: { type: 'number' }, minute: { type: 'number' }, label: S, url: S }, required: ['type'] },
+    execute: a => {
+      const e = encodeURIComponent, digits = String(a.number || '').replace(/[^\d+]/g, ''); let url = '', title = '';
+      switch (a.type) {
+        case 'call': url = 'tel:' + digits; title = 'Call ' + digits; break;
+        case 'sms': url = 'sms:' + digits + '?body=' + e(a.text || ''); title = 'Text ' + digits; break;
+        case 'whatsapp': url = 'https://wa.me/' + digits.replace('+', '') + '?text=' + e(a.text || ''); title = 'WhatsApp ' + digits; break;
+        case 'maps': url = 'geo:0,0?q=' + e(a.query || ''); title = 'Map: ' + a.query; break;
+        case 'alarm': { const h = Math.min(23, Math.max(0, a.hour | 0)), m = Math.min(59, Math.max(0, a.minute | 0)); url = 'intent:#Intent;action=android.intent.action.SET_ALARM;i.android.intent.extra.alarm.HOUR=' + h + ';i.android.intent.extra.alarm.MINUTES=' + m + ';S.android.intent.extra.alarm.MESSAGE=' + e(a.label || 'Richard says wake up') + ';end'; title = 'Set alarm ' + h + ':' + String(m).padStart(2, '0'); break; }
+        case 'youtube': url = 'https://www.youtube.com/results?search_query=' + e(a.query || ''); title = 'YouTube: ' + a.query; break;
+        case 'link': if (!/^https?:\/\//i.test(a.url || '')) return 'Only web links work.'; url = a.url; title = 'Open ' + a.url; break;
+        default: return 'Unknown action type.';
+      }
+      showAction(title, url); return 'Showed a button on screen: "' + title + '". The friend has to tap it.';
+    } },
+  { name: 'calculate', description: 'Evaluate a maths expression using + - * / % and brackets.',
+    inputSchema: { type: 'object', properties: { expression: S }, required: ['expression'] },
+    execute: ({ expression }) => { if (!/^[\d\s+\-*/().%]+$/.test(expression)) throw new Error('Unsupported expression'); return String(Function('"use strict";return (' + expression + ')')()); } },
+  { name: 'buzz', description: 'Vibrate the friend’s phone briefly to get their attention.',
+    execute: () => { if (navigator.vibrate) { try { navigator.vibrate([80, 60, 80]); } catch (_) {} return 'Buzzed.'; } return 'This device cannot vibrate.'; } }
+];
+let history = [], ctrl = null, turn = 0;
+try { $('language').value = localStorage.getItem('richard.language') || 'auto'; } catch (_) {}
+$('language').addEventListener('change', () => { try { localStorage.setItem('richard.language', selectedLanguage()); } catch (_) {} voice = null; if (mode === 'listening') { try { rec && rec.abort(); } catch (_) {} setTimeout(() => { if (awake && handsFree && mode === 'idle') startListening(); }, 150); } });
+
+/* ---------- Gemini (free key) ---------- */
+let apiKey = '', model = 'gemini-3.8-flash';
+try { apiKey = localStorage.getItem('richard.key') || ''; model = localStorage.getItem('richard.model') || model; } catch (_) {}
+function openSetup() { $('key').value = apiKey; $('model').value = model; $('setup').hidden = false; }
+$('setupBtn').onclick = openSetup;
+$('closeSetup').onclick = () => { $('setup').hidden = true; };
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { voice = null; };
+function diagBase() {
+  const rec = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  return 'Voices: ' + ('speechSynthesis' in window ? speechSynthesis.getVoices().length : 'none') + '. Mic input: ' + (rec ? 'supported' : 'not supported') + '. Model: ' + model + '.';
+}
+$('testVoice').onclick = () => {
+  const d = $('diag');
+  if (!('speechSynthesis' in window)) { d.textContent = 'This browser has no speech output. Open the page in Chrome.'; return; }
+  try { speechSynthesis.cancel(); speechSynthesis.resume(); } catch (_) {}
+  const u = new SpeechSynthesisUtterance('Okay, can you hear me? Say something nice back.'); u.lang = speechLanguage();
+  const v = pickVoice(u.lang); if (v) { u.voice = v; u.lang = v.lang || u.lang; }
+  u.onstart = () => { d.textContent = 'Speaking now. ' + diagBase(); };
+  u.onerror = e => { d.textContent = 'Voice error: ' + (e.error || 'unknown') + '. ' + diagBase(); };
+  u.onend = () => { d.textContent = 'Finished. If you heard nothing, turn up your media volume. ' + diagBase(); };
+  d.textContent = 'Asking your phone to speak… ' + diagBase();
+  speechSynthesis.speak(u);
+  setTimeout(() => { if (d.textContent.startsWith('Asking')) d.textContent = 'Your phone never started speaking. Use Chrome, raise the media volume, and check that a text-to-speech engine is installed in Android settings. ' + diagBase(); }, 3500);
+};
+$('testBrain').onclick = async () => {
+  const d = $('diag'); apiKey = $('key').value.trim() || apiKey; model = $('model').value.trim() || model;
+  if (!apiKey) { d.textContent = 'Paste a key first.'; return; }
+  d.textContent = 'Asking Gemini…';
+  try {
+    const r = await gemini([{ role: 'user', content: 'You are Richard, a sarcastic best friend. Reply in one short sentence.' }, { role: 'assistant', content: 'Ok.' }, { role: 'user', content: 'Say hi.' }], undefined, () => {});
+    d.textContent = 'Brain works (' + model + '): ' + r.text.slice(0, 120);
+  } catch (e) {
+    d.textContent = 'Brain error: ' + (e.code === 'bad_key' ? 'that key was rejected.' : e.code === 'rate_limited' ? 'rate limited, wait a minute.' : e.code === 'network' ? 'cannot reach Google. A preview window or blocked network can cause this; open the hosted page in Chrome.' : (e.message || 'unknown').slice(0, 160));
+  }
+};
+$('saveKey').onclick = () => {
+  apiKey = $('key').value.trim(); model = $('model').value.trim() || 'gemini-3.8-flash';
+  try { localStorage.setItem('richard.key', apiKey); localStorage.setItem('richard.model', model); } catch (_) {}
+  $('setup').hidden = true; note(apiKey ? 'Got it. Tap me to wake me up.' : 'I still need a key to think.');
+};
+const DECLS = tools.map(t => ({ name: t.name, description: t.description, ...(t.inputSchema ? { parameters: t.inputSchema } : {}) }));
+function fail(code, msg) { const e = new Error(msg || code); e.code = code; return e; }
+async function post(body, think, signal) {
+  const b = { ...body, generationConfig: { ...body.generationConfig, ...(think ? { thinkingConfig: think } : {}) } };
+  try {
+    return await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(model) + ':streamGenerateContent?alt=sse', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey }, body: JSON.stringify(b), signal
+    });
+  } catch (e) { if (e.name === 'AbortError') throw e; throw fail('network'); }
+}
+async function streamOnce(contents, system, signal, onChunk) {
+  const body = { systemInstruction: { parts: [{ text: system }] }, contents, tools: [{ functionDeclarations: DECLS }], generationConfig: { temperature: 1, maxOutputTokens: 400 } };
+  const think = /gemini-3/.test(model) ? { thinkingLevel: 'low' } : /2\.5/.test(model) ? { thinkingBudget: 0 } : null;
+  let res = await post(body, think, signal);
+  if (res.status === 400 && think) res = await post(body, null, signal);
+  if (res.status === 404 && model !== 'gemini-2.5-flash') { model = 'gemini-2.5-flash'; res = await post(body, { thinkingBudget: 0 }, signal); }
+  if (!res.ok) {
+    let m = ''; try { m = (await res.json()).error.message; } catch (_) {}
+    throw fail(res.status === 429 ? 'rate_limited' : (res.status === 400 || res.status === 403) && /key/i.test(m) ? 'bad_key' : 'http', m);
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder(); let buf = '', parts = [];
+  for (;;) {
+    const { value, done } = await reader.read(); if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const ln = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if (!ln.startsWith('data:')) continue;
+      let j; try { j = JSON.parse(ln.slice(5)); } catch (_) { continue; }
+      const ps = (j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts) || [];
+      for (const p of ps) { parts.push(p); if (p.text && !p.thought) onChunk(p.text); }
+    }
+  }
+  return parts;
+}
+async function gemini(msgs, signal, onText) {
+  const system = msgs[0].content;
+  const contents = msgs.slice(2).map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }));
+  let full = '';
+  for (let round = 0; round < 4; round++) {
+    if (round > 0 && full && !/\s$/.test(full)) full += ' ';
+    const parts = await streamOnce(contents, system, signal, t => { full += t; onText(full); });
+    const calls = parts.filter(p => p.functionCall);
+    if (!calls.length) break;
+    contents.push({ role: 'model', parts });
+    const out = [];
+    for (const p of calls) {
+      const t = tools.find(x => x.name === p.functionCall.name); let r;
+      try { r = t ? await t.execute(p.functionCall.args || {}) : 'Unknown tool'; } catch (e) { r = 'Error: ' + e.message; }
+      out.push({ functionResponse: { name: p.functionCall.name, response: { result: r } } });
+    }
+    contents.push({ role: 'user', parts: out });
+  }
+  return { text: full };
+}
+
+function buildMessages(nudge) {
+  const msgs = baseMessages(); if (nudge) msgs[msgs.length - 1] = { role: 'user', content: nudge }; return msgs;
+}
+function baseMessages() {
+  const sys = PERSONA + (facts.length ? '\n\nThings you already know about your friend:\n- ' + facts.join('\n- ') : '');
+  const h = history.slice(-14); while (h[0] && h[0].role !== 'user') h.shift();
+  return [{ role: 'user', content: sys + '\n\nThe conversation starts now. Stay in character and keep using mood tags.' }, { role: 'assistant', content: '[neutral] Yeah, I’m here. What’s up?' }, ...h];
+}
+
+/* ---------- state ---------- */
+let key = 'neutral', mode = 'asleep', handsFree = true, voiceOn = true, solid = true, awake = false, unanswered = 0, idleT = null;
+let cur = flat(E.sleepy), vel = cur.map(() => 0), tgt = cur.slice();
+let pal = E.sleepy.p.map(rgb), tpal = pal.map(c => c.slice());
+let gx = 0, gy = 0, gtx = 0, gty = 0, px = 0, py = 0;
+const MIC = { asleep: 'Wake up', idle: 'Talk', listening: 'Listening…', thinking: 'Thinking…', speaking: 'Interrupt' };
+function setMode(m) { mode = m; $('mic').textContent = MIC[m]; $('mic').classList.toggle('on', m === 'idle' || m === 'listening' || m === 'asleep'); }
+function setEmotion(k, haptic) {
+  if (!E[k]) return;
+  key = k; const e = E[k];
+  tgt = flat(e); applyColors(); $('mood').textContent = e.n;
+  if (haptic && navigator.vibrate) { try { navigator.vibrate(e.v); } catch (_) {} }
+}
+function applyColors() { tpal = E[key].p.map(rgb); document.documentElement.style.setProperty('--acc', E[key].p[0]); }
+const note = m => { $('cap').textContent = m; };
+
+/* ---------- speaking queue with letter-level lip sync ---------- */
+const VIS = { a:[1,1.12], e:[.65,1.15], i:[.4,1.2], o:[.9,.68], u:[.55,.6], y:[.35,1], m:[0,1], b:[0,1], p:[0,1], f:[.12,1], v:[.12,1], w:[.4,.62], '.':[0,1], ',':[0,1], '!':[0,1], '?':[0,1], ' ':[.1,1] };
+const visOf = ch => VIS[(ch || ' ').toLowerCase()] || [.28, .92];
+let sp = null, voice = null, queue = [], busy = false, streamDone = true, consumed = 0, pendingMood = null;
+const LANG_NAMES = {
+  'en-US':'English', 'fr-FR':'French', 'es-ES':'Spanish', 'pt-BR':'Portuguese',
+  'ar-SA':'Arabic', 'hi-IN':'Hindi', 'zh-CN':'Chinese', 'ig-NG':'Igbo',
+  'yo-NG':'Yoruba', 'ha-NG':'Hausa'
+};
+function selectedLanguage() { return $('language') ? $('language').value : 'auto'; }
+function speechLanguage() {
+  const chosen = selectedLanguage();
+  return chosen === 'auto' ? ((navigator.language || 'en-US')) : chosen;
+}
+function pickVoice(lang) {
+  if (!('speechSynthesis' in window)) return null;
+  const target = lang || speechLanguage();
+  const prefix = target.split('-')[0].toLowerCase();
+  const vs = speechSynthesis.getVoices();
+  return vs.find(v => v.lang && v.lang.toLowerCase() === target.toLowerCase() && /google|natural|samantha|aria|jenny/i.test(v.name))
+    || vs.find(v => v.lang && v.lang.toLowerCase() === target.toLowerCase())
+    || vs.find(v => v.lang && v.lang.toLowerCase().startsWith(prefix))
+    || vs.find(v => /^en/i.test(v.lang)) || null;
+}
+function say(text, mood, cb) {
+  const tk = turn; let fin = false;
+  const done = () => { if (fin || tk !== turn) return; fin = true; sp = null; if (queue.length) setTimeout(() => { if (tk === turn) cb(); }, 140 + Math.random() * 160); else cb(); };
+  if (mood) setEmotion(mood, true);
+  setMode('speaking'); note(text);
+  const [rate, pitch] = RP[mood || key] || [1.03, 1], n0 = performance.now();
+  const mine = sp = { text, i0: 0, tr: n0, t0: n0, cps: 13.5 * rate, real: voiceOn && 'speechSynthesis' in window, done };
+  if (mine.real) {
+    const u = new SpeechSynthesisUtterance(text); u.rate = rate; u.pitch = pitch; u.lang = speechLanguage();
+    try { speechSynthesis.resume(); } catch (_) {}
+    const v = pickVoice(u.lang); if (v) { u.voice = v; u.lang = v.lang || u.lang; }
+    u.onstart = () => { mine.started = true; if (sp === mine) { mine.t0 = mine.tr = performance.now(); mine.i0 = 0; } };
+    u.onboundary = e => {
+      if (sp !== mine || e.name !== 'word') return;
+      const n = performance.now();
+      if (e.charIndex > 4) mine.cps = Math.min(24, Math.max(8, .5 * mine.cps + .5 * e.charIndex / ((n - mine.t0) / 1000)));
+      mine.i0 = e.charIndex; mine.tr = n;
+      if (navigator.vibrate) { try { navigator.vibrate(7); } catch (_) {} }
+    };
+    u.onend = done; u.onerror = done; speechSynthesis.speak(u);
+    setTimeout(() => { if (sp === mine && !mine.started) { mine.real = false; mine.t0 = mine.tr = performance.now(); $('you').textContent = 'No sound? Open Setup and tap Test voice.'; } }, 4000);
+  }
+}
+function enqueue(text, mood) { queue.push({ text, mood }); if (!busy) next(); }
+function next() {
+  const it = queue.shift();
+  if (!it) { busy = false; maybeFinish(); return; }
+  busy = true; say(it.text, it.mood, next);
+}
+function maybeFinish() {
+  if (!streamDone || busy || queue.length) return;
+  setMode('idle');
+  if (!awake) return;
+  if (handsFree) setTimeout(() => { if (mode === 'idle') startListening(); }, 350);
+  scheduleIdle();
+}
+function abortAll() {
+  turn++; clearTimeout(idleT); try { ctrl && ctrl.abort(); } catch (_) {}
+  queue.length = 0; busy = false; sp = null; streamDone = true;
+  try { speechSynthesis.cancel(); } catch (_) {}
+  if (history.length && history[history.length - 1].role === 'user') history.pop();
+}
+
+/* stream parser: [mood] tags + sentence chunks, spoken as they arrive */
+function pump(full, final) {
+  if (consumed > full.length) consumed = full.length;
+  for (;;) {
+    const rest = full.slice(consumed);
+    const tm = /^\s*\[(\w+)\]\s*/.exec(rest);
+    if (tm) { if (E[tm[1].toLowerCase()]) pendingMood = tm[1].toLowerCase(); consumed += tm[0].length; continue; }
+    if (!rest.trim()) return;
+    const tagAt = rest.search(/\[/);
+    if (tagAt === 0) { if (final) consumed = full.length; return; }
+    const m = new RegExp('[.!?…]+["”’)]*(?=\\s|\\[' + (final ? '|$' : '') + ')').exec(rest);
+    let end = -1;
+    if (m && (tagAt < 0 || m.index < tagAt)) end = m.index + m[0].length;
+    else if (tagAt > 0) end = tagAt;
+    else if (final) end = rest.length;
+    else return;
+    const s = rest.slice(0, end).replace(/[*_`#]/g, '').trim(); consumed += end;
+    if (s) { enqueue(s, pendingMood); pendingMood = null; }
+  }
+}
+
+function send(text) {
+  text = text.trim(); if (!text) return;
+  unanswered = 0; $('you').textContent = 'You: ' + text; $('txt').value = '';
+  converse(text, false);
+}
+async function converse(text, auto, marker) {
+  if (!apiKey) { openSetup(); return; }
+  abortAll(); const my = ++turn;
+  setMode('thinking'); if (!auto) setEmotion('thinking');
+  consumed = 0; pendingMood = null; streamDone = false;
+  history.push({ role: 'user', content: auto ? marker : text });
+  ctrl = new AbortController();
+  try {
+    const res = await gemini(buildMessages(auto ? text : null), ctrl.signal, t => { if (my === turn) pump(t, false); });
+    if (my !== turn) return;
+    pump(res.text, true); history.push({ role: 'assistant', content: res.text });
+    try { localStorage.setItem('richard.last', String(Date.now())); } catch (_) {}
+  } catch (e) {
+    if (my !== turn) return;
+    if (history.length && history[history.length - 1].role === 'user') history.pop();
+    queue.length = 0; busy = false;
+    if (auto) { setMode('idle'); return; }
+    setEmotion('sad');
+    console.error(e);
+    if (e && e.code === 'bad_key') { openSetup(); note('That key didn’t work. Paste it again?'); }
+    else note(e && e.code === 'rate_limited' ? 'Give me a sec, Google says slow down on the free plan.' : e && e.code === 'network' ? 'I can’t reach Google right now. Check your connection.' : 'My brain glitched. Say that again?');
+  }
+  if (my !== turn) return;
+  streamDone = true; if (!busy && !queue.length) { if (mode === 'thinking') setMode('idle'); maybeFinish(); }
+}
+
+/* ---------- Richard starts the conversation ---------- */
+function scheduleIdle() {
+  clearTimeout(idleT);
+  if (!awake || !handsFree || unanswered >= 3) return;
+  idleT = setTimeout(proactive, (unanswered ? 14000 : 7000) + Math.random() * 6000);
+}
+function nowText() {
+  const d = new Date(), h = d.getHours();
+  const ph = h < 5 ? 'very late at night' : h < 11 ? 'morning' : h < 17 ? 'afternoon' : h < 22 ? 'evening' : 'late at night';
+  return d.toLocaleString([], { weekday: 'long', hour: 'numeric', minute: '2-digit' }) + ', ' + ph;
+}
+function gapText() {
+  let t = 0; try { t = Number(localStorage.getItem('richard.last')) || 0; } catch (_) {}
+  if (!t) return 'This is the first time they have opened the app.';
+  const m = Math.round((Date.now() - t) / 60000);
+  return 'You two last talked ' + (m < 90 ? m + ' minutes' : m < 2880 ? Math.round(m / 60) + ' hours' : Math.round(m / 1440) + ' days') + ' ago.';
+}
+let hiddenAt = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  const mins = hiddenAt ? (Date.now() - hiddenAt) / 60000 : 0; hiddenAt = 0;
+  if (awake && apiKey && mins > 12 && mode === 'idle') { unanswered = 0; converse('(Your friend just came back to the app after ' + Math.round(mins) + ' minutes away. It is ' + nowText() + '. Call out the gap like a petty, loyal friend would. One or two short sentences. Do not mention this note.)', true, '(they came back after being away)'); }
+});
+function proactive() {
+  if (!awake || !apiKey) return;
+  if (mode === 'thinking' || mode === 'speaking' || busy || queue.length) return scheduleIdle();
+  if (heard.trim() || (document.activeElement === $('txt') && $('txt').value)) return scheduleIdle();
+  try { rec && rec.abort(); } catch (_) {}
+  const n = unanswered++;
+  const extra = n >= 2 ? ' This is the third time you have talked with no answer: tell them you will give them a minute, warmly and with a little attitude.' : n === 1 ? ' They ignored your last line, so tease them about it.' : '';
+  converse('(Your friend has been quiet for a bit. It is ' + nowText() + '. Start talking on your own like a real friend would: bring something up, tease them, ask a random question, or react to something from earlier. One to three short sentences. Do not ask "are you there". Do not mention this note.)' + extra, true, '(they stayed quiet)');
+}
+function wake() {
+  if (!apiKey) { openSetup(); return; }
+  awake = true; unanswered = 0; $('you').textContent = '';
+  setMode('idle'); setEmotion('neutral', true);
+  converse('(Your friend just opened the app and you are waking up. It is ' + nowText() + '. ' + gapText() + ' Open by calling out something specific you know about them (exams, sleep, goals, habits) if you remember anything; otherwise roast them about the time of day. One or two short sentences. Do not mention this note.)', true, '(they just opened the app)');
+}
+
+/* ---------- listening ---------- */
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec = null, heard = '';
+function startListening() {
+  if (!SR) { note('This browser can’t hear me. Type to Richard instead.'); $('txt').focus(); return; }
+  try { rec && rec.abort(); } catch (_) {}
+  rec = new SR(); rec.lang = speechLanguage(); rec.interimResults = true; rec.continuous = false;
+  heard = ''; setMode('listening'); setEmotion('listening', key !== 'listening'); $('you').textContent = 'Listening in ' + (LANG_NAMES[speechLanguage()] || speechLanguage()) + '…';
+  const mine = rec;
+  rec.onresult = e => { clearTimeout(idleT); let t = ''; for (const r of e.results) t += r[0].transcript; heard = t; $('you').textContent = t; };
+  rec.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { mine.blocked = true; note('The mic is blocked here. Allow it, or type to me.'); } };
+  rec.onend = () => {
+    if (rec !== mine || mode !== 'listening') return;
+    const t = heard.trim(); heard = '';
+    if (t) send(t);
+    else { setMode('idle'); $('you').textContent = ''; if (awake && handsFree && !mine.blocked) setTimeout(() => { if (mode === 'idle') startListening(); }, 300); scheduleIdle(); }
+  };
+  try { rec.start(); } catch (_) { setMode('idle'); }
+}
+function micTap() {
+  if (mode === 'asleep') { wake(); return; }
+  unanswered = 0; clearTimeout(idleT);
+  if (mode === 'listening') { try { rec.stop(); } catch (_) {} return; }
+  if (mode !== 'idle') { abortAll(); setMode('idle'); }
+  startListening();
+}
+$('mic').onclick = micTap; $('face').onclick = micTap;
+$('send').onclick = () => send($('txt').value);
+$('txt').addEventListener('keydown', e => { if (e.key === 'Enter') send($('txt').value); });
+$('hf').onclick = () => {
+  handsFree = !handsFree; $('hf').classList.toggle('on', handsFree); $('hf').setAttribute('aria-pressed', handsFree);
+  if (handsFree) { if (awake && mode === 'idle') startListening(); scheduleIdle(); }
+  else { clearTimeout(idleT); try { rec && rec.abort(); } catch (_) {} if (mode === 'listening') setMode('idle'); }
+};
+$('snd').onclick = () => { voiceOn = !voiceOn; $('snd').classList.toggle('on', voiceOn); $('snd').setAttribute('aria-pressed', voiceOn); if (!voiceOn) try { speechSynthesis.cancel(); } catch (_) {} };
+$('bgb').onclick = () => { bgOn = !bgOn; $('bgb').classList.toggle('on', bgOn); $('bgb').setAttribute('aria-pressed', bgOn); };
+addEventListener('pointermove', e => {
+  px = Math.max(-1, Math.min(1, (e.clientX - innerWidth / 2) / (innerWidth / 2)));
+  py = Math.max(-1, Math.min(1, (e.clientY - innerHeight / 2) / (innerHeight / 2)));
+});
+
+/* ---------- timers ---------- */
+function fire(t) {
+  const i = timers.indexOf(t); if (i >= 0) timers.splice(i, 1);
+  const go = () => {
+    if (mode === 'listening' || mode === 'thinking') return setTimeout(go, 2000);
+    streamDone = true; enqueue('Hey. Your ' + t.label + ' is done.', 'angry');
+    if (navigator.vibrate) { try { navigator.vibrate([200, 100, 200]); } catch (_) {} }
+  };
+  go();
+}
+setInterval(() => {
+  const t = timers.reduce((a, b) => (!a || b.end < a.end ? b : a), null);
+  const s = t ? Math.max(0, Math.round((t.end - Date.now()) / 1000)) : 0;
+  $('tm').textContent = t ? '· ' + t.label + ' ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0') : '';
+}, 1000);
+
+/* ---------- rendering: ambient space + premium line face ---------- */
+const fc = $('face'), fx = fc.getContext('2d'), bc = $('bgc'), bx = bc.getContext('2d');
+let W = 600, bgOn = true, core = [255, 255, 255];
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2), r = fc.getBoundingClientRect();
+  W = Math.max(200, Math.round((r.width || 400) * dpr)); fc.width = fc.height = W;
+  bc.width = Math.ceil(innerWidth / 6); bc.height = Math.ceil(innerHeight / 6);
+}
+addEventListener('resize', resize);
+const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+const css = (c, a) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+const clamp01 = v => Math.max(0, Math.min(1, v));
+function ribbon(pts, w, color) {
+  const n = pts.length, A = [], B = [];
+  for (let i = 0; i < n; i++) {
+    const a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)];
+    let dx = b[0] - a[0], dy = b[1] - a[1]; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
+    const k = Math.pow(Math.sin(Math.PI * i / (n - 1)), .5) * w / 2 + .2;
+    A.push([pts[i][0] - dy * k, pts[i][1] + dx * k]); B.push([pts[i][0] + dy * k, pts[i][1] - dx * k]);
+  }
+  fx.beginPath(); fx.moveTo(A[0][0], A[0][1]);
+  for (let i = 1; i < n; i++) fx.lineTo(A[i][0], A[i][1]);
+  for (let i = n - 1; i >= 0; i--) fx.lineTo(B[i][0], B[i][1]);
+  fx.closePath(); fx.fillStyle = color; fx.fill();
+}
+function strand(pts, w, a) {
+  if (a < .02) return;
+  ribbon(pts, w * 3.6, css(pal[1], .06 * a)); ribbon(pts, w * 2.1, css(pal[2], .12 * a));
+  ribbon(pts, w, css(core, a)); ribbon(pts, w * .28, `rgba(255,255,255,${.9 * a})`);
+}
+function curve(len, ang, bend, cx, cy, n) {
+  const r = ang * Math.PI / 180, c = Math.cos(r), sn = Math.sin(r), pts = [];
+  for (let i = 0; i <= n; i++) { const t = i / n, lx = (t - .5) * len, ly = 2 * t * (1 - t) * bend; pts.push([cx + lx * c - ly * sn, cy + lx * sn + ly * c]); }
+  return pts;
+}
+function eyePts(p, ox, oy, blink) {
+  let [len, a, b, x, y] = p; const s = Math.abs(Math.sin(a * Math.PI / 180));
+  len *= 1 - s * (1 - blink); b *= 1 - (1 - blink) * (1 - s);
+  return curve(len, a, b, 300 + x + ox, 300 + y + oy, 10);
+}
+function mouthPts(m, ox, oy) {
+  const [w, c, s, y, open] = m, top = [], bot = [], h = Math.max(0, open) / 2;
+  for (let i = 0; i <= 26; i++) {
+    const t = i / 26, x = 300 + ox + (t - .5) * w, yb = 300 + y + oy + 2 * t * (1 - t) * c + s * (t - .5), k = Math.sin(Math.PI * t) * h;
+    top.push([x, yb - k]); bot.push([x, yb + k]);
+  }
+  return { top, bot };
+}
+function drawAmbient(t) {
+  const w = bc.width, h = bc.height;
+  bx.globalCompositeOperation = 'source-over'; bx.fillStyle = '#04050A'; bx.fillRect(0, 0, w, h);
+  if (!bgOn) return;
+  bx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 3; i++) {
+    const a = t * (.11 + i * .05) + i * 2.1, x = w * (.5 + .34 * Math.cos(a * 1.3 + i)), y = h * (.5 + .3 * Math.sin(a + i * 1.7));
+    const r = Math.max(w, h) * (.55 + .12 * i + en * .14), g = bx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, css(pal[i], .4 + en * .3)); g.addColorStop(1, css(pal[i], 0));
+    bx.fillStyle = g; bx.fillRect(0, 0, w, h);
+  }
+  bx.globalCompositeOperation = 'source-over';
+}
+function drawFace(p, blink, t) {
+  fx.setTransform(1, 0, 0, 1, 0, 0); fx.clearRect(0, 0, fc.width, fc.height);
+  fx.setTransform(W / 600, 0, 0, W / 600, 0, (reduce ? 0 : Math.sin(t * 1.3) * 5) * W / 600);
+  core = mix(pal[0], [255, 255, 255], .55);
+  const sc = 1 + en * .18;
+  strand(eyePts(p.slice(0, 5), gx, gy, blink), 15 * sc, 1);
+  strand(eyePts(p.slice(5, 10), gx, gy, blink), 15 * sc, 1);
+  const bl = p.slice(15, 19), br = p.slice(19, 23);
+  strand(curve(bl[0], bl[1], -9, 300 + p[3] + gx * .6, 300 + p[4] + bl[2] + gy * .6, 10), 7, clamp01(bl[3]));
+  strand(curve(br[0], br[1], -9, 300 + p[8] + gx * .6, 300 + p[9] + br[2] + gy * .6, 10), 7, clamp01(br[3]));
+  const m = mouthPts(p.slice(10, 15), gx * .35, gy * .35);
+  if (p[14] > 3) {
+    fx.beginPath(); fx.moveTo(m.top[0][0], m.top[0][1]);
+    for (const q of m.top) fx.lineTo(q[0], q[1]);
+    for (let i = m.bot.length - 1; i >= 0; i--) fx.lineTo(m.bot[i][0], m.bot[i][1]);
+    fx.closePath(); fx.fillStyle = 'rgba(2,3,8,.6)'; fx.fill();
+    fx.fillStyle = css(pal[0], .1 + en * .12); fx.fill();
+  }
+  strand(m.top, 11 * sc, 1);
+  if (p[14] > 1.5) strand(m.bot, 11 * sc, 1);
+}
+let last = performance.now(), nextBlink = last + 3000, blinkStart = -1, mo = 0, mw = 1, en = 0;
+function frame(now) {
+  const dt = Math.min(.033, (now - last) / 1000); last = now;
+  const t = now / 1000, K = reduce ? 1200 : 560, D = reduce ? 70 : 31;
+  for (let i = 0; i < cur.length; i++) { vel[i] += ((tgt[i] - cur[i]) * K - vel[i] * D) * dt; cur[i] += vel[i] * dt; }
+  const kc = 1 - Math.exp(-dt * 5);
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) pal[i][j] += (tpal[i][j] - pal[i][j]) * kc;
+  const g = E[key].g || [0, 0];
+  gtx = g[0] + px * 16 + (reduce ? 0 : Math.sin(t * .7) * 3);
+  gty = g[1] + py * 12 + (reduce ? 0 : Math.cos(t * .9) * 2);
+  gx += (gtx - gx) * (1 - Math.exp(-dt * 14)); gy += (gty - gy) * (1 - Math.exp(-dt * 14));
+  let blink = 1;
+  if (now > nextBlink && blinkStart < 0) blinkStart = now;
+  if (blinkStart >= 0) {
+    const q = (now - blinkStart) / 170;
+    if (q >= 1) { blinkStart = -1; nextBlink = now + 2500 + Math.random() * 3000; }
+    else blink = 1 - .92 * Math.sin(Math.PI * q);
+  }
+  const p = cur.slice();
+  if (key === 'listening') { const w = reduce ? 0 : 14 * Math.sin(t * 7) + 8 * Math.sin(t * 11.3); p[0] += w; p[5] += w * .8; }
+  let tv = 0, tw = 1;
+  if (sp) {
+    const idx = sp.i0 + (now - sp.tr) / 1000 * sp.cps, len = sp.text.length;
+    if (idx > len + sp.cps * 3 || (!sp.real && idx > len + 2)) sp.done();
+    else if (idx < len) [tv, tw] = visOf(sp.text[Math.floor(idx)]);
+  }
+  mo += (tv - mo) * (1 - Math.exp(-dt * 24)); mw += (tw - mw) * (1 - Math.exp(-dt * 18));
+  if (mo > .01) { p[14] = Math.max(p[14], 0) + mo * 34; p[13] += mo * 7; p[10] *= mw; }
+  en += ((key === 'listening' ? .3 + .15 * Math.sin(t * 7) : 0) + mo * .8 - en) * (1 - Math.exp(-dt * 10));
+  drawAmbient(t); drawFace(p, blink, t);
+  requestAnimationFrame(frame);
+}
+resize();
+setEmotion('sleepy', false); setMode('asleep');
+if (!apiKey) { openSetup(); note('Paste your free Gemini key so I can think.'); }
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
