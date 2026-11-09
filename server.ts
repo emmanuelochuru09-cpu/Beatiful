@@ -12,7 +12,8 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // API route to check brain status
 app.get('/api/status', (req, res) => {
@@ -329,7 +330,14 @@ async function generateLocalRichardReply(
 
 // POST /api/gemini/chat
 app.post('/api/gemini/chat', async (req, res) => {
-  const { messages, apiKey: userKey, model: requestedModel, clientState } = req.body;
+  const {
+    messages,
+    apiKey: userKey,
+    model: requestedModel,
+    clientState,
+    useSearchGrounding,
+    useMapsGrounding,
+  } = req.body;
   const rawKey = userKey || process.env.GEMINI_API_KEY;
   const apiKey = rawKey && rawKey !== 'MY_GEMINI_API_KEY' && rawKey.trim().length > 5 ? rawKey.trim() : '';
 
@@ -352,7 +360,7 @@ app.post('/api/gemini/chat', async (req, res) => {
       const part = words.slice(i, i + 3).join(' ') + (i + 3 < words.length ? ' ' : '');
       sendSSE('chunk', { text: part });
     }
-    sendSSE('done', { fullText: reply, clientActions });
+    sendSSE('done', { fullText: reply, clientActions, groundingSources: [] });
     return res.end();
   }
 
@@ -369,6 +377,7 @@ app.post('/api/gemini/chat', async (req, res) => {
   const systemText = messages[0]?.content || '';
   const conversation = messages.slice(1);
   const clientActionEvents: any[] = [];
+  const groundingSources: { title: string; url: string }[] = [];
   let fullText = '';
 
   try {
@@ -380,6 +389,22 @@ app.post('/api/gemini/chat', async (req, res) => {
         },
       },
     });
+
+    // Determine tools and config based on grounding options
+    let tools: any[] = [{ functionDeclarations: TOOL_DECLARATIONS as any }];
+    let toolConfig: any = undefined;
+
+    if (useMapsGrounding) {
+      // Maps grounding cannot be combined with other tools
+      tools = [{ googleMaps: {} }];
+    } else if (useSearchGrounding) {
+      // Search grounding combined with custom function declarations
+      tools = [
+        { googleSearch: {} },
+        { functionDeclarations: TOOL_DECLARATIONS as any },
+      ];
+      toolConfig = { includeServerSideToolInvocations: true };
+    }
 
     // Prepare contents
     const contents: any[] = conversation.map((m: any) => ({
@@ -397,12 +422,13 @@ app.post('/api/gemini/chat', async (req, res) => {
           contents,
           config: {
             systemInstruction: systemText,
-            tools: [{ functionDeclarations: TOOL_DECLARATIONS as any }],
+            tools,
+            ...(toolConfig ? { toolConfig } : {}),
           },
         });
 
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('TIMEOUT')), 7000)
+          setTimeout(() => reject(new Error('TIMEOUT')), 8500)
         );
 
         responseStream = await Promise.race([streamPromise, timeoutPromise]);
@@ -418,11 +444,12 @@ app.post('/api/gemini/chat', async (req, res) => {
             contents,
             config: {
               systemInstruction: systemText,
-              tools: [{ functionDeclarations: TOOL_DECLARATIONS as any }],
+              tools,
+              ...(toolConfig ? { toolConfig } : {}),
             },
           });
           const retryTimeoutPromise = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('TIMEOUT')), 7000)
+            setTimeout(() => reject(new Error('TIMEOUT')), 8500)
           );
           responseStream = await Promise.race([retryStreamPromise, retryTimeoutPromise]);
         } else {
@@ -439,6 +466,25 @@ app.post('/api/gemini/chat', async (req, res) => {
           fullText += chunk.text;
           sendSSE('chunk', { text: chunk.text });
         }
+
+        // Extract grounding chunks from Google Search or Google Maps
+        const candidate = (chunk as any).candidates?.[0];
+        const gChunks = candidate?.groundingMetadata?.groundingChunks;
+        if (Array.isArray(gChunks) && gChunks.length > 0) {
+          for (const g of gChunks) {
+            if (g.web?.uri && !groundingSources.some((s) => s.url === g.web.uri)) {
+              const src = { title: g.web.title || g.web.uri, url: g.web.uri };
+              groundingSources.push(src);
+              sendSSE('grounding', src);
+            }
+            if (g.maps?.uri && !groundingSources.some((s) => s.url === g.maps.uri)) {
+              const src = { title: g.maps.title || 'View Location on Google Maps', url: g.maps.uri };
+              groundingSources.push(src);
+              sendSSE('grounding', src);
+            }
+          }
+        }
+
         // Check for function calls
         const functionCalls = chunk.functionCalls;
         if (functionCalls && functionCalls.length > 0) {
@@ -530,7 +576,7 @@ app.post('/api/gemini/chat', async (req, res) => {
       });
     }
 
-    sendSSE('done', { fullText, clientActions: clientActionEvents });
+    sendSSE('done', { fullText, clientActions: clientActionEvents, groundingSources });
     res.end();
   } catch (err: any) {
     const errMsg = String(err?.message || err);
@@ -547,10 +593,233 @@ app.post('/api/gemini/chat', async (req, res) => {
       const part = words.slice(i, i + 3).join(' ') + (i + 3 < words.length ? ' ' : '');
       sendSSE('chunk', { text: part });
     }
-    sendSSE('done', { fullText: fallbackText, clientActions });
+    sendSSE('done', { fullText: fallbackText, clientActions, groundingSources: [] });
     res.end();
   }
 });
+
+// POST /api/gemini/transcribe (Audio transcription via gemini-3.5-transcribe)
+app.post('/api/gemini/transcribe', async (req, res) => {
+  try {
+    const { audioBase64, mimeType, apiKey: userKey } = req.body;
+    if (!audioBase64) {
+      return res.status(400).json({ error: 'No audio data provided' });
+    }
+    const rawKey = userKey || process.env.GEMINI_API_KEY;
+    const apiKey = rawKey && rawKey !== 'MY_GEMINI_API_KEY' && rawKey.trim().length > 5 ? rawKey.trim() : '';
+    if (!apiKey) {
+      return res.status(400).json({ error: 'No Gemini API key available for transcription.' });
+    }
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+    });
+    const audioPart = {
+      inlineData: {
+        mimeType: mimeType || 'audio/webm',
+        data: audioBase64,
+      },
+    };
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.5-transcribe',
+      contents: {
+        parts: [
+          audioPart,
+          { text: 'Transcribe this spoken speech accurately. Return only the exact transcribed speech text.' },
+        ],
+      },
+    });
+    const transcribedText = (response.text || '').trim();
+    return res.json({ text: transcribedText });
+  } catch (err: any) {
+    console.warn('[Transcribe error]', err?.message || err);
+    return res.status(500).json({ error: err?.message || 'Transcription failed' });
+  }
+});
+
+// POST /api/gemini/generate-image (Image generation & editing via gemini-nano-banana-2.1 or gemini-3.1-flash-lite-image)
+app.post('/api/gemini/generate-image', async (req, res) => {
+  try {
+    const { prompt, base64Image, mimeType, model: reqModel, aspectRatio = '1:1', apiKey: userKey } = req.body;
+    if (!prompt && !base64Image) {
+      return res.status(400).json({ error: 'Please provide a prompt or image' });
+    }
+    const rawKey = userKey || process.env.GEMINI_API_KEY;
+    const apiKey = rawKey && rawKey !== 'MY_GEMINI_API_KEY' && rawKey.trim().length > 5 ? rawKey.trim() : '';
+    if (!apiKey) {
+      return res.status(400).json({ error: 'No Gemini API key available.' });
+    }
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+    });
+
+    let chosenModel = reqModel || 'gemini-nano-banana-2.1';
+    const parts: any[] = [];
+    if (base64Image) {
+      // Editing an image
+      chosenModel = 'gemini-3.1-flash-lite-image';
+      parts.push({
+        inlineData: {
+          data: base64Image,
+          mimeType: mimeType || 'image/png',
+        },
+      });
+      parts.push({ text: prompt || 'Enhance and creatively stylize this image' });
+    } else {
+      parts.push({ text: prompt });
+    }
+
+    const response = await ai.models.generateContent({
+      model: chosenModel,
+      contents: { parts },
+      config: {
+        imageConfig: {
+          aspectRatio: aspectRatio as any,
+          ...(chosenModel === 'gemini-nano-banana-2.1' ? { imageSize: '1K' } : {}),
+        },
+      },
+    });
+
+    let imageUrl = '';
+    let captionText = '';
+    for (const part of response.candidates?.[0]?.content?.parts ?? []) {
+      if (part.inlineData?.data) {
+        const mime = part.inlineData.mimeType ?? 'image/png';
+        imageUrl = `data:${mime};base64,${part.inlineData.data}`;
+      } else if (part.text) {
+        captionText += part.text;
+      }
+    }
+
+    if (!imageUrl) {
+      return res.status(500).json({ error: 'No image was generated. Please try a different prompt.' });
+    }
+    return res.json({ imageUrl, caption: captionText });
+  } catch (err: any) {
+    console.warn('[Image gen error]', err?.message || err);
+    return res.status(500).json({ error: err?.message || 'Image generation failed' });
+  }
+});
+
+// POST /api/gemini/generate-video (Video generation & image animation via gemini-omni-1.2-flash Interactions API)
+app.post('/api/gemini/generate-video', async (req, res) => {
+  try {
+    const { prompt, base64Image, mimeType, aspectRatio = '16:9', duration = '10s', apiKey: userKey } = req.body;
+    if (!prompt && !base64Image) {
+      return res.status(400).json({ error: 'Please provide a prompt or image' });
+    }
+    const rawKey = userKey || process.env.GEMINI_API_KEY;
+    const apiKey = rawKey && rawKey !== 'MY_GEMINI_API_KEY' && rawKey.trim().length > 5 ? rawKey.trim() : '';
+    if (!apiKey) {
+      return res.status(400).json({ error: 'No Gemini API key available.' });
+    }
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+    });
+
+    let input: any;
+    if (base64Image) {
+      // Image to video
+      input = [
+        {
+          type: 'image',
+          mime_type: mimeType || 'image/png',
+          data: base64Image,
+        },
+        {
+          type: 'text',
+          text: prompt || 'Animate this image into a smooth cinematic video.',
+        },
+      ];
+    } else {
+      input = prompt;
+    }
+
+    const interaction = await ai.interactions.create(
+      {
+        model: 'gemini-omni-1.2-flash',
+        input,
+        background: false,
+        store: false,
+        stream: false,
+        response_format: {
+          type: 'video',
+          aspect_ratio: aspectRatio as any,
+          duration: duration as any,
+          resolution: '720p',
+        },
+      },
+      { timeout: 300000 }
+    );
+
+    const videoPart = interaction.output_video;
+    if (videoPart && videoPart.data) {
+      const mime = videoPart.mime_type || 'video/mp4';
+      return res.json({ videoUrl: `data:${mime};base64,${videoPart.data}` });
+    } else if (videoPart && (videoPart as any).uri) {
+      return res.json({ videoUrl: (videoPart as any).uri });
+    }
+    return res.status(500).json({ error: 'No video was returned by Omni Flash.' });
+  } catch (err: any) {
+    console.warn('[Video gen error]', err?.message || err);
+    return res.status(500).json({ error: err?.message || 'Video generation failed' });
+  }
+});
+
+// POST /api/gemini/generate-music (Music generation via lyria-3-clip-preview)
+app.post('/api/gemini/generate-music', async (req, res) => {
+  try {
+    const { prompt, apiKey: userKey } = req.body;
+    const rawKey = userKey || process.env.GEMINI_API_KEY;
+    const apiKey = rawKey && rawKey !== 'MY_GEMINI_API_KEY' && rawKey.trim().length > 5 ? rawKey.trim() : '';
+    if (!apiKey) {
+      return res.status(400).json({ error: 'No Gemini API key available.' });
+    }
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: { headers: { 'User-Agent': 'aistudio-build' } },
+    });
+
+    const response = await ai.models.generateContentStream({
+      model: 'lyria-3-clip-preview',
+      contents: prompt || 'An upbeat electronic study beat with mellow lo-fi synths and gentle drums',
+    });
+
+    const audioChunks: Buffer[] = [];
+    let lyrics = '';
+    let mimeType = 'audio/mpeg';
+
+    for await (const chunk of response) {
+      const parts = chunk.candidates?.[0]?.content?.parts;
+      if (!parts) continue;
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          if (audioChunks.length === 0 && part.inlineData.mimeType) {
+            mimeType = part.inlineData.mimeType;
+          }
+          audioChunks.push(Buffer.from(part.inlineData.data, 'base64'));
+        }
+        if (part.text) {
+          lyrics += part.text;
+        }
+      }
+    }
+
+    if (audioChunks.length === 0) {
+      return res.status(500).json({ error: 'No music audio was produced.' });
+    }
+
+    const audioBase64 = Buffer.concat(audioChunks).toString('base64');
+    const audioDataUrl = `data:${mimeType};base64,${audioBase64}`;
+    return res.json({ audioDataUrl, lyrics });
+  } catch (err: any) {
+    console.warn('[Music gen error]', err?.message || err);
+    return res.status(500).json({ error: err?.message || 'Music generation failed' });
+  }
+});
+
 
 // Dev vs Prod Vite mounting
 async function startServer() {

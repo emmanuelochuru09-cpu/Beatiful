@@ -32,6 +32,7 @@ export interface ChatMessage {
   displayContent?: string;
   mood?: EmotionKey;
   timestamp: number;
+  groundingSources?: { title: string; url: string }[];
 }
 
 export interface TimerItem {

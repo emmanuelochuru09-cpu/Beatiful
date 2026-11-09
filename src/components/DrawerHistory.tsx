@@ -109,6 +109,27 @@ export const DrawerHistory: React.FC<DrawerHistoryProps> = ({
                   </div>
 
                   <p className="select-text whitespace-pre-wrap">{m.displayContent || m.content}</p>
+
+                  {m.groundingSources && m.groundingSources.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-white/5 space-y-1">
+                      <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400 block">
+                        Grounding Sources ({m.groundingSources.length}):
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {m.groundingSources.map((src, i) => (
+                          <a
+                            key={i}
+                            href={src.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[11px] text-blue-400 hover:text-blue-300 underline bg-white/5 px-2 py-0.5 rounded flex items-center gap-1 max-w-full truncate"
+                          >
+                            <span>{src.title || src.url}</span>
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })

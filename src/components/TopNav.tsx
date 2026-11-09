@@ -11,7 +11,7 @@ interface TopNavProps {
   ambientOn: boolean;
   onToggleVoice: () => void;
   onToggleAmbient: () => void;
-  onOpenDrawer: (drawer: 'memory' | 'todos' | 'history' | 'settings') => void;
+  onOpenDrawer: (drawer: 'memory' | 'todos' | 'history' | 'settings' | 'studio') => void;
   onWakeOrSleep: () => void;
   awake: boolean;
 }
@@ -69,7 +69,14 @@ export const TopNav: React.FC<TopNavProps> = ({
       </div>
 
       {/* Zone 2: Navigation Links / Drawer Switches */}
-      <nav className="flex items-center gap-4 sm:gap-6 text-xs sm:text-sm font-medium text-slate-400">
+      <nav className="flex items-center gap-3 sm:gap-5 text-xs sm:text-sm font-medium text-slate-400">
+        <button
+          onClick={() => onOpenDrawer('studio')}
+          className="hover:text-amber-300 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1 text-amber-400/90 font-semibold"
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>AI Studio</span>
+        </button>
         <button
           onClick={() => onOpenDrawer('memory')}
           className="hover:text-white transition-colors whitespace-nowrap cursor-pointer"

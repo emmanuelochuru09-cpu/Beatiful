@@ -26,6 +26,10 @@ interface DrawerSettingsProps {
   onChangeMorningGreetingTime: (time: string) => void;
   onTriggerMorningGreetingTest: () => void;
   lastGreetingDateString: string | null;
+  useSearchGrounding: boolean;
+  onToggleSearchGrounding: () => void;
+  useMapsGrounding: boolean;
+  onToggleMapsGrounding: () => void;
 }
 
 export const DrawerSettings: React.FC<DrawerSettingsProps> = ({
@@ -52,6 +56,10 @@ export const DrawerSettings: React.FC<DrawerSettingsProps> = ({
   onChangeMorningGreetingTime,
   onTriggerMorningGreetingTest,
   lastGreetingDateString,
+  useSearchGrounding,
+  onToggleSearchGrounding,
+  useMapsGrounding,
+  onToggleMapsGrounding,
 }) => {
   const [keyInput, setKeyInput] = useState(apiKey);
   const [modelInput, setModelInput] = useState(model);
@@ -162,9 +170,42 @@ export const DrawerSettings: React.FC<DrawerSettingsProps> = ({
               onChange={(e) => setModelInput(e.target.value)}
               className="w-full text-xs bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-blue-500/50 cursor-pointer"
             >
-              <option value="gemini-3.8-flash">gemini-3.8-flash (Recommended, Low Latency)</option>
-              <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Ultra Fast)</option>
+              <option value="gemini-3.8-flash">gemini-3.8-flash (General Tasks, Fast & Emotive)</option>
+              <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (Ultra Fast, Lowest Latency)</option>
+              <option value="gemini-4-argon">gemini-4-argon (Complex Tasks & Deep Reasoning)</option>
             </select>
+          </div>
+
+          {/* Grounding Controls */}
+          <div className="pt-2 border-t border-white/5 space-y-2">
+            <label className="text-[10px] text-slate-400 uppercase font-mono tracking-wider block">
+              Gemini Grounding Tools
+            </label>
+            <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
+              <div>
+                <p className="text-xs font-medium text-white">Google Search Grounding</p>
+                <p className="text-[10px] text-slate-400">Pulls live web facts with cited sources</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={useSearchGrounding}
+                onChange={onToggleSearchGrounding}
+                className="w-4 h-4 rounded text-blue-500 bg-black/40 border-white/20 cursor-pointer accent-blue-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-2 rounded-xl bg-white/[0.02] border border-white/5">
+              <div>
+                <p className="text-xs font-medium text-white">Google Maps Grounding</p>
+                <p className="text-[10px] text-slate-400">Pulls locations and places nearby</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={useMapsGrounding}
+                onChange={onToggleMapsGrounding}
+                className="w-4 h-4 rounded text-blue-500 bg-black/40 border-white/20 cursor-pointer accent-blue-500"
+              />
+            </div>
           </div>
 
           <div className="flex gap-2 pt-1">
